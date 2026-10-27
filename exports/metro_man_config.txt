@@ -1,0 +1,406 @@
+!============================================================================
+! NETARCHITECT AUTOMATED CISCO IOS CONFIGURATION EXPORT
+! Scenario:    METRO_MAN
+! Generated:   Deterministic NetArchitect Configuration Engine
+! Devices:     3 devices (HQ, Site-B, Site-C)
+!============================================================================
+
+!======================================================================
+! NetArchitect Cisco IOS Configuration
+! Device:   HQ
+! Site:     HQ (Role: HUB)
+! Scenario: metro_man
+! Layer:    Layer 3 Device
+!======================================================================
+!
+! PLATFORM ASSUMPTIONS & NOTES:
+! 1. Target platform: Cisco IOS 15.x / IOS-XE 16.x or 17.x.
+! 2. Review all bracketed placeholders '<...>' before deployment.
+! 3. Verify interface module designations (e.g., GigabitEthernet vs TenGigabitEthernet).
+!
+! --- BASE SYSTEM CONFIGURATION ---
+hostname HQ
+no ip domain-lookup
+service password-encryption
+enable secret <ENTER_SECURE_ENABLE_SECRET>
+ip routing
+!
+! --- SPANNING TREE PROTOCOL (IEEE 802.1w) ---
+spanning-tree mode rstp
+spanning-tree vlan 1-4094 priority 4096
+! Device priority 4096 configured for root/backup root deterministic placement.
+spanning-tree portfast default
+spanning-tree portfast bpduguard default
+!
+! --- VLAN DATABASE ---
+vlan 10
+ name HQ_Users
+vlan 20
+ name SiteB_Users
+vlan 30
+ name SiteC_Users
+vlan 40
+ name Mgmt
+vlan 50
+ name QoS_Voice
+vlan 999
+ name ISOLATED_NATIVE_VLAN
+!
+! --- INTERFACES CONFIGURATION ---
+interface Loopback0
+ description OSPF Router-ID / Management loopback for HQ
+ ip address 172.16.2.2 255.255.255.255
+ no shutdown
+!
+interface GigabitEthernet0/0
+ description Uplink trunk — HQ
+ switchport
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,50,999
+ switchport nonegotiate
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description WAN uplink — HQ
+ no switchport
+ ip address <WAN-IP-HQ> <WAN-MASK-HQ>
+ service-policy output QOS-WAN-POLICY
+ no shutdown
+!
+! --- SWITCH VIRTUAL INTERFACES (SVIs) ---
+interface Vlan10
+ description Gateway SVI for HQ_Users
+ ip address 172.16.0.1 255.255.255.0
+ no shutdown
+!
+interface Vlan20
+ description Gateway SVI for SiteB_Users
+ ip address 172.16.1.1 255.255.255.128
+ no shutdown
+!
+interface Vlan30
+ description Gateway SVI for SiteC_Users
+ ip address 172.16.1.129 255.255.255.128
+ no shutdown
+!
+interface Vlan40
+ description Gateway SVI for Mgmt
+ ip address 172.16.2.1 255.255.255.224
+ no shutdown
+!
+! --- QUALITY OF SERVICE (QoS) POLICIES ---
+class-map match-any CM-VOICE
+ match ip dscp ef
+class-map match-any CM-VIDEO
+ match ip dscp af41
+class-map match-any CM-CRITICAL-DATA
+ match ip dscp af21
+!
+policy-map QOS-WAN-POLICY
+ class CM-VOICE
+  priority percent 20
+ class CM-VIDEO
+  bandwidth percent 25
+ class CM-CRITICAL-DATA
+  bandwidth percent 30
+ class class-default
+  fair-queue
+!
+! --- ROUTING PROTOCOL (OSPFv2) ---
+router ospf 1
+ router-id 172.16.2.2
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ no passive-interface GigabitEthernet0/1
+ network 172.16.0.0 0.0.0.255 area 0
+ network 172.16.1.0 0.0.0.127 area 0
+ network 172.16.1.128 0.0.0.127 area 0
+ network 172.16.2.0 0.0.0.31 area 0
+!
+! --- SECURITY ACCESS-CONTROL & LINE SECURITY ---
+ip access-list standard ACL-MGMT-INBOUND
+ permit 172.16.2.0 0.0.0.255
+ deny any log
+!
+line con 0
+ exec-timeout 10 0
+ logging synchronous
+ login authentication default
+line vty 0 4
+ exec-timeout 10 0
+ logging synchronous
+ transport input ssh
+ access-class ACL-MGMT-INBOUND in
+!
+end
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!======================================================================
+! NetArchitect Cisco IOS Configuration
+! Device:   Site-B
+! Site:     Site_B (Role: SPOKE)
+! Scenario: metro_man
+! Layer:    Layer 3 Device
+!======================================================================
+!
+! PLATFORM ASSUMPTIONS & NOTES:
+! 1. Target platform: Cisco IOS 15.x / IOS-XE 16.x or 17.x.
+! 2. Review all bracketed placeholders '<...>' before deployment.
+! 3. Verify interface module designations (e.g., GigabitEthernet vs TenGigabitEthernet).
+!
+! --- BASE SYSTEM CONFIGURATION ---
+hostname Site-B
+no ip domain-lookup
+service password-encryption
+enable secret <ENTER_SECURE_ENABLE_SECRET>
+ip routing
+!
+! --- SPANNING TREE PROTOCOL (IEEE 802.1w) ---
+spanning-tree mode rstp
+! Default bridge priority 32768 maintained for non-root bridge.
+spanning-tree portfast default
+spanning-tree portfast bpduguard default
+!
+! --- VLAN DATABASE ---
+vlan 10
+ name HQ_Users
+vlan 20
+ name SiteB_Users
+vlan 30
+ name SiteC_Users
+vlan 40
+ name Mgmt
+vlan 50
+ name QoS_Voice
+vlan 999
+ name ISOLATED_NATIVE_VLAN
+!
+! --- INTERFACES CONFIGURATION ---
+interface Loopback0
+ description OSPF Router-ID / Management loopback for Site_B
+ ip address 172.16.2.3 255.255.255.255
+ no shutdown
+!
+interface GigabitEthernet0/0
+ description Uplink trunk — Site_B
+ switchport
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,50,999
+ switchport nonegotiate
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description WAN uplink — Site_B
+ no switchport
+ ip address <WAN-IP-SITE_B> <WAN-MASK-SITE_B>
+ service-policy output QOS-WAN-POLICY
+ no shutdown
+!
+! --- SWITCH VIRTUAL INTERFACES (SVIs) ---
+interface Vlan10
+ description Gateway SVI for HQ_Users
+ ip address 172.16.0.1 255.255.255.0
+ no shutdown
+!
+interface Vlan20
+ description Gateway SVI for SiteB_Users
+ ip address 172.16.1.1 255.255.255.128
+ no shutdown
+!
+interface Vlan30
+ description Gateway SVI for SiteC_Users
+ ip address 172.16.1.129 255.255.255.128
+ no shutdown
+!
+interface Vlan40
+ description Gateway SVI for Mgmt
+ ip address 172.16.2.1 255.255.255.224
+ no shutdown
+!
+! --- QUALITY OF SERVICE (QoS) POLICIES ---
+class-map match-any CM-VOICE
+ match ip dscp ef
+class-map match-any CM-VIDEO
+ match ip dscp af41
+class-map match-any CM-CRITICAL-DATA
+ match ip dscp af21
+!
+policy-map QOS-WAN-POLICY
+ class CM-VOICE
+  priority percent 20
+ class CM-VIDEO
+  bandwidth percent 25
+ class CM-CRITICAL-DATA
+  bandwidth percent 30
+ class class-default
+  fair-queue
+!
+! --- ROUTING PROTOCOL (OSPFv2) ---
+router ospf 1
+ router-id 172.16.2.3
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ no passive-interface GigabitEthernet0/1
+ network 172.16.0.0 0.0.0.255 area 0
+ network 172.16.1.0 0.0.0.127 area 0
+ network 172.16.1.128 0.0.0.127 area 0
+ network 172.16.2.0 0.0.0.31 area 0
+!
+! --- SECURITY ACCESS-CONTROL & LINE SECURITY ---
+ip access-list standard ACL-MGMT-INBOUND
+ permit 172.16.2.0 0.0.0.255
+ deny any log
+!
+line con 0
+ exec-timeout 10 0
+ logging synchronous
+ login authentication default
+line vty 0 4
+ exec-timeout 10 0
+ logging synchronous
+ transport input ssh
+ access-class ACL-MGMT-INBOUND in
+!
+end
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!======================================================================
+! NetArchitect Cisco IOS Configuration
+! Device:   Site-C
+! Site:     Site_C (Role: SPOKE)
+! Scenario: metro_man
+! Layer:    Layer 3 Device
+!======================================================================
+!
+! PLATFORM ASSUMPTIONS & NOTES:
+! 1. Target platform: Cisco IOS 15.x / IOS-XE 16.x or 17.x.
+! 2. Review all bracketed placeholders '<...>' before deployment.
+! 3. Verify interface module designations (e.g., GigabitEthernet vs TenGigabitEthernet).
+!
+! --- BASE SYSTEM CONFIGURATION ---
+hostname Site-C
+no ip domain-lookup
+service password-encryption
+enable secret <ENTER_SECURE_ENABLE_SECRET>
+ip routing
+!
+! --- SPANNING TREE PROTOCOL (IEEE 802.1w) ---
+spanning-tree mode rstp
+! Default bridge priority 32768 maintained for non-root bridge.
+spanning-tree portfast default
+spanning-tree portfast bpduguard default
+!
+! --- VLAN DATABASE ---
+vlan 10
+ name HQ_Users
+vlan 20
+ name SiteB_Users
+vlan 30
+ name SiteC_Users
+vlan 40
+ name Mgmt
+vlan 50
+ name QoS_Voice
+vlan 999
+ name ISOLATED_NATIVE_VLAN
+!
+! --- INTERFACES CONFIGURATION ---
+interface Loopback0
+ description OSPF Router-ID / Management loopback for Site_C
+ ip address 172.16.2.4 255.255.255.255
+ no shutdown
+!
+interface GigabitEthernet0/0
+ description Uplink trunk — Site_C
+ switchport
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,50,999
+ switchport nonegotiate
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description WAN uplink — Site_C
+ no switchport
+ ip address <WAN-IP-SITE_C> <WAN-MASK-SITE_C>
+ service-policy output QOS-WAN-POLICY
+ no shutdown
+!
+! --- SWITCH VIRTUAL INTERFACES (SVIs) ---
+interface Vlan10
+ description Gateway SVI for HQ_Users
+ ip address 172.16.0.1 255.255.255.0
+ no shutdown
+!
+interface Vlan20
+ description Gateway SVI for SiteB_Users
+ ip address 172.16.1.1 255.255.255.128
+ no shutdown
+!
+interface Vlan30
+ description Gateway SVI for SiteC_Users
+ ip address 172.16.1.129 255.255.255.128
+ no shutdown
+!
+interface Vlan40
+ description Gateway SVI for Mgmt
+ ip address 172.16.2.1 255.255.255.224
+ no shutdown
+!
+! --- QUALITY OF SERVICE (QoS) POLICIES ---
+class-map match-any CM-VOICE
+ match ip dscp ef
+class-map match-any CM-VIDEO
+ match ip dscp af41
+class-map match-any CM-CRITICAL-DATA
+ match ip dscp af21
+!
+policy-map QOS-WAN-POLICY
+ class CM-VOICE
+  priority percent 20
+ class CM-VIDEO
+  bandwidth percent 25
+ class CM-CRITICAL-DATA
+  bandwidth percent 30
+ class class-default
+  fair-queue
+!
+! --- ROUTING PROTOCOL (OSPFv2) ---
+router ospf 1
+ router-id 172.16.2.4
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ no passive-interface GigabitEthernet0/1
+ network 172.16.0.0 0.0.0.255 area 0
+ network 172.16.1.0 0.0.0.127 area 0
+ network 172.16.1.128 0.0.0.127 area 0
+ network 172.16.2.0 0.0.0.31 area 0
+!
+! --- SECURITY ACCESS-CONTROL & LINE SECURITY ---
+ip access-list standard ACL-MGMT-INBOUND
+ permit 172.16.2.0 0.0.0.255
+ deny any log
+!
+line con 0
+ exec-timeout 10 0
+ logging synchronous
+ login authentication default
+line vty 0 4
+ exec-timeout 10 0
+ logging synchronous
+ transport input ssh
+ access-class ACL-MGMT-INBOUND in
+!
+end
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -1,0 +1,828 @@
+!============================================================================
+! NETARCHITECT AUTOMATED CISCO IOS CONFIGURATION EXPORT
+! Scenario:    GLOBAL_WAN
+! Generated:   Deterministic NetArchitect Configuration Engine
+! Devices:     5 devices (City-Mumbai, City-Delhi, City-Bangalore, City-Chennai, Cloud-VPC)
+!============================================================================
+
+!======================================================================
+! NetArchitect Cisco IOS Configuration
+! Device:   City-Mumbai
+! Site:     City_Mumbai (Role: HUB)
+! Scenario: global_wan
+! Layer:    Layer 3 Device
+!======================================================================
+!
+! PLATFORM ASSUMPTIONS & NOTES:
+! 1. Target platform: Cisco IOS 15.x / IOS-XE 16.x or 17.x.
+! 2. Review all bracketed placeholders '<...>' before deployment.
+! 3. Verify interface module designations (e.g., GigabitEthernet vs TenGigabitEthernet).
+!
+! --- BASE SYSTEM CONFIGURATION ---
+hostname City-Mumbai
+no ip domain-lookup
+service password-encryption
+enable secret <ENTER_SECURE_ENABLE_SECRET>
+ip routing
+!
+! --- SPANNING TREE PROTOCOL (IEEE 802.1w) ---
+spanning-tree mode rstp
+spanning-tree vlan 1-4094 priority 4096
+! Device priority 4096 configured for root/backup root deterministic placement.
+spanning-tree portfast default
+spanning-tree portfast bpduguard default
+!
+! --- VLAN DATABASE ---
+vlan 10
+ name Mumbai_Users
+vlan 20
+ name Delhi_Users
+vlan 30
+ name Bangalore_Users
+vlan 40
+ name Chennai_Users
+vlan 100
+ name IoT_Fleet
+vlan 200
+ name Mgmt
+vlan 300
+ name VPN_Overlay
+vlan 999
+ name ISOLATED_NATIVE_VLAN
+!
+! --- INTERFACES CONFIGURATION ---
+interface Loopback0
+ description OSPF Router-ID / Management loopback for City_Mumbai
+ ip address 192.168.19.2 255.255.255.255
+ no shutdown
+!
+interface GigabitEthernet0/0
+ description Uplink trunk — City_Mumbai
+ switchport
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,100,200,300,999
+ switchport nonegotiate
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description WAN uplink — City_Mumbai
+ no switchport
+ ip address <WAN-IP-CITY_MUMBAI> <WAN-MASK-CITY_MUMBAI>
+ no shutdown
+!
+interface Tunnel100
+ description IPsec GRE tunnel — City_Mumbai to hub
+ ip address <TUNNEL-IP-CITY_MUMBAI> 255.255.255.252
+ tunnel source GigabitEthernet0/1
+ tunnel destination <REMOTE-HUB-WAN-IP>
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile IPSEC-PROF-NETARCHITECT
+ no shutdown
+!
+! --- SWITCH VIRTUAL INTERFACES (SVIs) ---
+interface Vlan10
+ description Gateway SVI for Mumbai_Users
+ ip address 192.168.4.1 255.255.254.0
+ no shutdown
+!
+interface Vlan20
+ description Gateway SVI for Delhi_Users
+ ip address 192.168.10.1 255.255.254.0
+ no shutdown
+!
+interface Vlan30
+ description Gateway SVI for Bangalore_Users
+ ip address 192.168.14.1 255.255.254.0
+ no shutdown
+!
+interface Vlan40
+ description Gateway SVI for Chennai_Users
+ ip address 192.168.16.1 255.255.254.0
+ no shutdown
+!
+interface Vlan200
+ description Gateway SVI for Mgmt
+ ip address 192.168.19.1 255.255.255.224
+ no shutdown
+!
+! --- IPSEC / IKEv2 SITE-TO-SITE VPN ---
+crypto ikev2 proposal PROP-NETARCHITECT
+ encryption aes-cbc-256
+ integrity sha256
+ group 14
+!
+crypto ikev2 policy POL-NETARCHITECT
+ proposal PROP-NETARCHITECT
+!
+crypto ikev2 keyring KR-PEER-City_Delhi
+ peer PEER-City_Delhi
+  address <CITY_DELHI-WAN-IP>
+  pre-shared-key <PSK-REPLACE-BEFORE-DEPLOYMENT>
+!
+crypto ikev2 profile PROF-PEER-City_Delhi
+ match identity remote address <CITY_DELHI-WAN-IP> 255.255.255.255
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-PEER-City_Delhi
+ dpd 30 3 periodic
+!
+crypto ikev2 keyring KR-PEER-City_Bangalore
+ peer PEER-City_Bangalore
+  address <CITY_BANGALORE-WAN-IP>
+  pre-shared-key <PSK-REPLACE-BEFORE-DEPLOYMENT>
+!
+crypto ikev2 profile PROF-PEER-City_Bangalore
+ match identity remote address <CITY_BANGALORE-WAN-IP> 255.255.255.255
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-PEER-City_Bangalore
+ dpd 30 3 periodic
+!
+crypto ikev2 keyring KR-PEER-City_Chennai
+ peer PEER-City_Chennai
+  address <CITY_CHENNAI-WAN-IP>
+  pre-shared-key <PSK-REPLACE-BEFORE-DEPLOYMENT>
+!
+crypto ikev2 profile PROF-PEER-City_Chennai
+ match identity remote address <CITY_CHENNAI-WAN-IP> 255.255.255.255
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-PEER-City_Chennai
+ dpd 30 3 periodic
+!
+crypto ikev2 keyring KR-PEER-Cloud_VPC
+ peer PEER-Cloud_VPC
+  address <CLOUD_VPC-WAN-IP>
+  pre-shared-key <PSK-REPLACE-BEFORE-DEPLOYMENT>
+!
+crypto ikev2 profile PROF-PEER-Cloud_VPC
+ match identity remote address <CLOUD_VPC-WAN-IP> 255.255.255.255
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-PEER-Cloud_VPC
+ dpd 30 3 periodic
+!
+crypto ipsec transform-set TS-NETARCHITECT esp-aes 256 esp-sha256-hmac
+ mode tunnel
+!
+crypto ipsec profile IPSEC-PROF-NETARCHITECT
+ set transform-set TS-NETARCHITECT
+ set ikev2-profile PROF-NETARCHITECT
+!
+! --- ROUTING PROTOCOL (OSPFv2) ---
+router ospf 1
+ router-id 192.168.19.2
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ no passive-interface GigabitEthernet0/1
+ no passive-interface Tunnel100
+ network 192.168.4.0 0.0.1.255 area 0
+ network 192.168.10.0 0.0.1.255 area 0
+ network 192.168.14.0 0.0.1.255 area 0
+ network 192.168.16.0 0.0.1.255 area 0
+ network 192.168.19.0 0.0.0.31 area 0
+!
+! --- EXTERIOR BGP (eBGP) CONFIGURATION ---
+router bgp 65001
+ bgp log-neighbor-changes
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> remote-as 65002
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> description Cloud VPC eBGP peer
+ network 192.168.0.0 mask 255.255.252.0
+ network 192.168.4.0 mask 255.255.254.0
+ network 192.168.6.0 mask 255.255.254.0
+!
+! --- SECURITY ACCESS-CONTROL & LINE SECURITY ---
+ip access-list standard ACL-MGMT-INBOUND
+ permit 192.168.19.0 0.0.0.255
+ deny any log
+!
+line con 0
+ exec-timeout 10 0
+ logging synchronous
+ login authentication default
+line vty 0 4
+ exec-timeout 10 0
+ logging synchronous
+ transport input ssh
+ access-class ACL-MGMT-INBOUND in
+!
+end
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!======================================================================
+! NetArchitect Cisco IOS Configuration
+! Device:   City-Delhi
+! Site:     City_Delhi (Role: SPOKE)
+! Scenario: global_wan
+! Layer:    Layer 3 Device
+!======================================================================
+!
+! PLATFORM ASSUMPTIONS & NOTES:
+! 1. Target platform: Cisco IOS 15.x / IOS-XE 16.x or 17.x.
+! 2. Review all bracketed placeholders '<...>' before deployment.
+! 3. Verify interface module designations (e.g., GigabitEthernet vs TenGigabitEthernet).
+!
+! --- BASE SYSTEM CONFIGURATION ---
+hostname City-Delhi
+no ip domain-lookup
+service password-encryption
+enable secret <ENTER_SECURE_ENABLE_SECRET>
+ip routing
+!
+! --- SPANNING TREE PROTOCOL (IEEE 802.1w) ---
+spanning-tree mode rstp
+! Default bridge priority 32768 maintained for non-root bridge.
+spanning-tree portfast default
+spanning-tree portfast bpduguard default
+!
+! --- VLAN DATABASE ---
+vlan 10
+ name Mumbai_Users
+vlan 20
+ name Delhi_Users
+vlan 30
+ name Bangalore_Users
+vlan 40
+ name Chennai_Users
+vlan 100
+ name IoT_Fleet
+vlan 200
+ name Mgmt
+vlan 300
+ name VPN_Overlay
+vlan 999
+ name ISOLATED_NATIVE_VLAN
+!
+! --- INTERFACES CONFIGURATION ---
+interface Loopback0
+ description OSPF Router-ID / Management loopback for City_Delhi
+ ip address 192.168.19.3 255.255.255.255
+ no shutdown
+!
+interface GigabitEthernet0/0
+ description Uplink trunk — City_Delhi
+ switchport
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,100,200,300,999
+ switchport nonegotiate
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description WAN uplink — City_Delhi
+ no switchport
+ ip address <WAN-IP-CITY_DELHI> <WAN-MASK-CITY_DELHI>
+ no shutdown
+!
+interface Tunnel101
+ description IPsec GRE tunnel — City_Delhi to hub
+ ip address <TUNNEL-IP-CITY_DELHI> 255.255.255.252
+ tunnel source GigabitEthernet0/1
+ tunnel destination <REMOTE-HUB-WAN-IP>
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile IPSEC-PROF-NETARCHITECT
+ no shutdown
+!
+! --- SWITCH VIRTUAL INTERFACES (SVIs) ---
+interface Vlan10
+ description Gateway SVI for Mumbai_Users
+ ip address 192.168.4.1 255.255.254.0
+ no shutdown
+!
+interface Vlan20
+ description Gateway SVI for Delhi_Users
+ ip address 192.168.10.1 255.255.254.0
+ no shutdown
+!
+interface Vlan30
+ description Gateway SVI for Bangalore_Users
+ ip address 192.168.14.1 255.255.254.0
+ no shutdown
+!
+interface Vlan40
+ description Gateway SVI for Chennai_Users
+ ip address 192.168.16.1 255.255.254.0
+ no shutdown
+!
+interface Vlan200
+ description Gateway SVI for Mgmt
+ ip address 192.168.19.1 255.255.255.224
+ no shutdown
+!
+! --- IPSEC / IKEv2 SITE-TO-SITE VPN ---
+crypto ikev2 proposal PROP-NETARCHITECT
+ encryption aes-cbc-256
+ integrity sha256
+ group 14
+!
+crypto ikev2 policy POL-NETARCHITECT
+ proposal PROP-NETARCHITECT
+!
+crypto ikev2 keyring KR-PEER-City_Mumbai
+ peer PEER-City_Mumbai
+  address <CITY_DELHI-WAN-IP>
+  pre-shared-key <PSK-REPLACE-BEFORE-DEPLOYMENT>
+!
+crypto ikev2 profile PROF-PEER-City_Mumbai
+ match identity remote address <CITY_DELHI-WAN-IP> 255.255.255.255
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-PEER-City_Mumbai
+ dpd 30 3 periodic
+!
+crypto ipsec transform-set TS-NETARCHITECT esp-aes 256 esp-sha256-hmac
+ mode tunnel
+!
+crypto ipsec profile IPSEC-PROF-NETARCHITECT
+ set transform-set TS-NETARCHITECT
+ set ikev2-profile PROF-NETARCHITECT
+!
+! --- ROUTING PROTOCOL (OSPFv2) ---
+router ospf 1
+ router-id 192.168.19.3
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ no passive-interface GigabitEthernet0/1
+ no passive-interface Tunnel101
+ network 192.168.4.0 0.0.1.255 area 1
+ network 192.168.10.0 0.0.1.255 area 1
+ network 192.168.14.0 0.0.1.255 area 1
+ network 192.168.16.0 0.0.1.255 area 1
+ network 192.168.19.0 0.0.0.31 area 1
+!
+! --- EXTERIOR BGP (eBGP) CONFIGURATION ---
+router bgp 65001
+ bgp log-neighbor-changes
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> remote-as 65002
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> description Cloud VPC eBGP peer
+ network 192.168.0.0 mask 255.255.252.0
+ network 192.168.4.0 mask 255.255.254.0
+ network 192.168.6.0 mask 255.255.254.0
+!
+! --- SECURITY ACCESS-CONTROL & LINE SECURITY ---
+ip access-list standard ACL-MGMT-INBOUND
+ permit 192.168.19.0 0.0.0.255
+ deny any log
+!
+line con 0
+ exec-timeout 10 0
+ logging synchronous
+ login authentication default
+line vty 0 4
+ exec-timeout 10 0
+ logging synchronous
+ transport input ssh
+ access-class ACL-MGMT-INBOUND in
+!
+end
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!======================================================================
+! NetArchitect Cisco IOS Configuration
+! Device:   City-Bangalore
+! Site:     City_Bangalore (Role: SPOKE)
+! Scenario: global_wan
+! Layer:    Layer 3 Device
+!======================================================================
+!
+! PLATFORM ASSUMPTIONS & NOTES:
+! 1. Target platform: Cisco IOS 15.x / IOS-XE 16.x or 17.x.
+! 2. Review all bracketed placeholders '<...>' before deployment.
+! 3. Verify interface module designations (e.g., GigabitEthernet vs TenGigabitEthernet).
+!
+! --- BASE SYSTEM CONFIGURATION ---
+hostname City-Bangalore
+no ip domain-lookup
+service password-encryption
+enable secret <ENTER_SECURE_ENABLE_SECRET>
+ip routing
+!
+! --- SPANNING TREE PROTOCOL (IEEE 802.1w) ---
+spanning-tree mode rstp
+! Default bridge priority 32768 maintained for non-root bridge.
+spanning-tree portfast default
+spanning-tree portfast bpduguard default
+!
+! --- VLAN DATABASE ---
+vlan 10
+ name Mumbai_Users
+vlan 20
+ name Delhi_Users
+vlan 30
+ name Bangalore_Users
+vlan 40
+ name Chennai_Users
+vlan 100
+ name IoT_Fleet
+vlan 200
+ name Mgmt
+vlan 300
+ name VPN_Overlay
+vlan 999
+ name ISOLATED_NATIVE_VLAN
+!
+! --- INTERFACES CONFIGURATION ---
+interface Loopback0
+ description OSPF Router-ID / Management loopback for City_Bangalore
+ ip address 192.168.19.4 255.255.255.255
+ no shutdown
+!
+interface GigabitEthernet0/0
+ description Uplink trunk — City_Bangalore
+ switchport
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,100,200,300,999
+ switchport nonegotiate
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description WAN uplink — City_Bangalore
+ no switchport
+ ip address <WAN-IP-CITY_BANGALORE> <WAN-MASK-CITY_BANGALORE>
+ no shutdown
+!
+interface Tunnel102
+ description IPsec GRE tunnel — City_Bangalore to hub
+ ip address <TUNNEL-IP-CITY_BANGALORE> 255.255.255.252
+ tunnel source GigabitEthernet0/1
+ tunnel destination <REMOTE-HUB-WAN-IP>
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile IPSEC-PROF-NETARCHITECT
+ no shutdown
+!
+! --- SWITCH VIRTUAL INTERFACES (SVIs) ---
+interface Vlan10
+ description Gateway SVI for Mumbai_Users
+ ip address 192.168.4.1 255.255.254.0
+ no shutdown
+!
+interface Vlan20
+ description Gateway SVI for Delhi_Users
+ ip address 192.168.10.1 255.255.254.0
+ no shutdown
+!
+interface Vlan30
+ description Gateway SVI for Bangalore_Users
+ ip address 192.168.14.1 255.255.254.0
+ no shutdown
+!
+interface Vlan40
+ description Gateway SVI for Chennai_Users
+ ip address 192.168.16.1 255.255.254.0
+ no shutdown
+!
+interface Vlan200
+ description Gateway SVI for Mgmt
+ ip address 192.168.19.1 255.255.255.224
+ no shutdown
+!
+! --- IPSEC / IKEv2 SITE-TO-SITE VPN ---
+crypto ikev2 proposal PROP-NETARCHITECT
+ encryption aes-cbc-256
+ integrity sha256
+ group 14
+!
+crypto ikev2 policy POL-NETARCHITECT
+ proposal PROP-NETARCHITECT
+!
+crypto ikev2 keyring KR-PEER-City_Mumbai
+ peer PEER-City_Mumbai
+  address <CITY_BANGALORE-WAN-IP>
+  pre-shared-key <PSK-REPLACE-BEFORE-DEPLOYMENT>
+!
+crypto ikev2 profile PROF-PEER-City_Mumbai
+ match identity remote address <CITY_BANGALORE-WAN-IP> 255.255.255.255
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-PEER-City_Mumbai
+ dpd 30 3 periodic
+!
+crypto ipsec transform-set TS-NETARCHITECT esp-aes 256 esp-sha256-hmac
+ mode tunnel
+!
+crypto ipsec profile IPSEC-PROF-NETARCHITECT
+ set transform-set TS-NETARCHITECT
+ set ikev2-profile PROF-NETARCHITECT
+!
+! --- ROUTING PROTOCOL (OSPFv2) ---
+router ospf 1
+ router-id 192.168.19.4
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ no passive-interface GigabitEthernet0/1
+ no passive-interface Tunnel102
+ network 192.168.4.0 0.0.1.255 area 2
+ network 192.168.10.0 0.0.1.255 area 2
+ network 192.168.14.0 0.0.1.255 area 2
+ network 192.168.16.0 0.0.1.255 area 2
+ network 192.168.19.0 0.0.0.31 area 2
+!
+! --- EXTERIOR BGP (eBGP) CONFIGURATION ---
+router bgp 65001
+ bgp log-neighbor-changes
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> remote-as 65002
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> description Cloud VPC eBGP peer
+ network 192.168.0.0 mask 255.255.252.0
+ network 192.168.4.0 mask 255.255.254.0
+ network 192.168.6.0 mask 255.255.254.0
+!
+! --- SECURITY ACCESS-CONTROL & LINE SECURITY ---
+ip access-list standard ACL-MGMT-INBOUND
+ permit 192.168.19.0 0.0.0.255
+ deny any log
+!
+line con 0
+ exec-timeout 10 0
+ logging synchronous
+ login authentication default
+line vty 0 4
+ exec-timeout 10 0
+ logging synchronous
+ transport input ssh
+ access-class ACL-MGMT-INBOUND in
+!
+end
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!======================================================================
+! NetArchitect Cisco IOS Configuration
+! Device:   City-Chennai
+! Site:     City_Chennai (Role: SPOKE)
+! Scenario: global_wan
+! Layer:    Layer 3 Device
+!======================================================================
+!
+! PLATFORM ASSUMPTIONS & NOTES:
+! 1. Target platform: Cisco IOS 15.x / IOS-XE 16.x or 17.x.
+! 2. Review all bracketed placeholders '<...>' before deployment.
+! 3. Verify interface module designations (e.g., GigabitEthernet vs TenGigabitEthernet).
+!
+! --- BASE SYSTEM CONFIGURATION ---
+hostname City-Chennai
+no ip domain-lookup
+service password-encryption
+enable secret <ENTER_SECURE_ENABLE_SECRET>
+ip routing
+!
+! --- SPANNING TREE PROTOCOL (IEEE 802.1w) ---
+spanning-tree mode rstp
+! Default bridge priority 32768 maintained for non-root bridge.
+spanning-tree portfast default
+spanning-tree portfast bpduguard default
+!
+! --- VLAN DATABASE ---
+vlan 10
+ name Mumbai_Users
+vlan 20
+ name Delhi_Users
+vlan 30
+ name Bangalore_Users
+vlan 40
+ name Chennai_Users
+vlan 100
+ name IoT_Fleet
+vlan 200
+ name Mgmt
+vlan 300
+ name VPN_Overlay
+vlan 999
+ name ISOLATED_NATIVE_VLAN
+!
+! --- INTERFACES CONFIGURATION ---
+interface Loopback0
+ description OSPF Router-ID / Management loopback for City_Chennai
+ ip address 192.168.19.5 255.255.255.255
+ no shutdown
+!
+interface GigabitEthernet0/0
+ description Uplink trunk — City_Chennai
+ switchport
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,100,200,300,999
+ switchport nonegotiate
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description WAN uplink — City_Chennai
+ no switchport
+ ip address <WAN-IP-CITY_CHENNAI> <WAN-MASK-CITY_CHENNAI>
+ no shutdown
+!
+interface Tunnel103
+ description IPsec GRE tunnel — City_Chennai to hub
+ ip address <TUNNEL-IP-CITY_CHENNAI> 255.255.255.252
+ tunnel source GigabitEthernet0/1
+ tunnel destination <REMOTE-HUB-WAN-IP>
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile IPSEC-PROF-NETARCHITECT
+ no shutdown
+!
+! --- SWITCH VIRTUAL INTERFACES (SVIs) ---
+interface Vlan10
+ description Gateway SVI for Mumbai_Users
+ ip address 192.168.4.1 255.255.254.0
+ no shutdown
+!
+interface Vlan20
+ description Gateway SVI for Delhi_Users
+ ip address 192.168.10.1 255.255.254.0
+ no shutdown
+!
+interface Vlan30
+ description Gateway SVI for Bangalore_Users
+ ip address 192.168.14.1 255.255.254.0
+ no shutdown
+!
+interface Vlan40
+ description Gateway SVI for Chennai_Users
+ ip address 192.168.16.1 255.255.254.0
+ no shutdown
+!
+interface Vlan200
+ description Gateway SVI for Mgmt
+ ip address 192.168.19.1 255.255.255.224
+ no shutdown
+!
+! --- IPSEC / IKEv2 SITE-TO-SITE VPN ---
+crypto ikev2 proposal PROP-NETARCHITECT
+ encryption aes-cbc-256
+ integrity sha256
+ group 14
+!
+crypto ikev2 policy POL-NETARCHITECT
+ proposal PROP-NETARCHITECT
+!
+crypto ikev2 keyring KR-PEER-City_Mumbai
+ peer PEER-City_Mumbai
+  address <CITY_CHENNAI-WAN-IP>
+  pre-shared-key <PSK-REPLACE-BEFORE-DEPLOYMENT>
+!
+crypto ikev2 profile PROF-PEER-City_Mumbai
+ match identity remote address <CITY_CHENNAI-WAN-IP> 255.255.255.255
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-PEER-City_Mumbai
+ dpd 30 3 periodic
+!
+crypto ipsec transform-set TS-NETARCHITECT esp-aes 256 esp-sha256-hmac
+ mode tunnel
+!
+crypto ipsec profile IPSEC-PROF-NETARCHITECT
+ set transform-set TS-NETARCHITECT
+ set ikev2-profile PROF-NETARCHITECT
+!
+! --- ROUTING PROTOCOL (OSPFv2) ---
+router ospf 1
+ router-id 192.168.19.5
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ no passive-interface GigabitEthernet0/1
+ no passive-interface Tunnel103
+ network 192.168.4.0 0.0.1.255 area 3
+ network 192.168.10.0 0.0.1.255 area 3
+ network 192.168.14.0 0.0.1.255 area 3
+ network 192.168.16.0 0.0.1.255 area 3
+ network 192.168.19.0 0.0.0.31 area 3
+!
+! --- EXTERIOR BGP (eBGP) CONFIGURATION ---
+router bgp 65001
+ bgp log-neighbor-changes
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> remote-as 65002
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> description Cloud VPC eBGP peer
+ network 192.168.0.0 mask 255.255.252.0
+ network 192.168.4.0 mask 255.255.254.0
+ network 192.168.6.0 mask 255.255.254.0
+!
+! --- SECURITY ACCESS-CONTROL & LINE SECURITY ---
+ip access-list standard ACL-MGMT-INBOUND
+ permit 192.168.19.0 0.0.0.255
+ deny any log
+!
+line con 0
+ exec-timeout 10 0
+ logging synchronous
+ login authentication default
+line vty 0 4
+ exec-timeout 10 0
+ logging synchronous
+ transport input ssh
+ access-class ACL-MGMT-INBOUND in
+!
+end
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!======================================================================
+! NetArchitect Cisco IOS Configuration
+! Device:   Cloud-VPC
+! Site:     Cloud_VPC (Role: CLOUD)
+! Scenario: global_wan
+! Layer:    Layer 3 Device
+!======================================================================
+!
+! PLATFORM ASSUMPTIONS & NOTES:
+! 1. Target platform: Cisco IOS 15.x / IOS-XE 16.x or 17.x.
+! 2. Review all bracketed placeholders '<...>' before deployment.
+! 3. Verify interface module designations (e.g., GigabitEthernet vs TenGigabitEthernet).
+!
+! --- BASE SYSTEM CONFIGURATION ---
+hostname Cloud-VPC
+no ip domain-lookup
+service password-encryption
+enable secret <ENTER_SECURE_ENABLE_SECRET>
+ip routing
+!
+! --- INTERFACES CONFIGURATION ---
+interface Loopback0
+ description OSPF Router-ID / Management loopback for Cloud_VPC
+ ip address 192.168.19.6 255.255.255.255
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description WAN uplink — Cloud_VPC
+ no switchport
+ ip address <WAN-IP-CLOUD_VPC> <WAN-MASK-CLOUD_VPC>
+ no shutdown
+!
+! --- OUT-OF-BAND / MANAGEMENT SVI ---
+interface Vlan99
+ description Management Interface for Cloud-VPC
+ ip address 192.168.19.6 255.255.255.224
+ no shutdown
+!
+! --- IPSEC / IKEv2 SITE-TO-SITE VPN ---
+crypto ikev2 proposal PROP-NETARCHITECT
+ encryption aes-cbc-256
+ integrity sha256
+ group 14
+!
+crypto ikev2 policy POL-NETARCHITECT
+ proposal PROP-NETARCHITECT
+!
+crypto ikev2 keyring KR-PEER-City_Mumbai
+ peer PEER-City_Mumbai
+  address <CLOUD_VPC-WAN-IP>
+  pre-shared-key <PSK-REPLACE-BEFORE-DEPLOYMENT>
+!
+crypto ikev2 profile PROF-PEER-City_Mumbai
+ match identity remote address <CLOUD_VPC-WAN-IP> 255.255.255.255
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-PEER-City_Mumbai
+ dpd 30 3 periodic
+!
+crypto ipsec transform-set TS-NETARCHITECT esp-aes 256 esp-sha256-hmac
+ mode tunnel
+!
+crypto ipsec profile IPSEC-PROF-NETARCHITECT
+ set transform-set TS-NETARCHITECT
+ set ikev2-profile PROF-NETARCHITECT
+!
+! --- ROUTING PROTOCOL (OSPFv2) ---
+router ospf 1
+ router-id 192.168.19.6
+ passive-interface default
+ no passive-interface GigabitEthernet0/1
+!
+! --- EXTERIOR BGP (eBGP) CONFIGURATION ---
+router bgp 65002
+ bgp log-neighbor-changes
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> remote-as 65002
+ neighbor <BGP_NEIGHBOR_IP_CLOUD_VPC> description Cloud VPC eBGP peer
+ network 192.168.0.0 mask 255.255.252.0
+ network 192.168.4.0 mask 255.255.254.0
+ network 192.168.6.0 mask 255.255.254.0
+!
+! --- SECURITY ACCESS-CONTROL & LINE SECURITY ---
+ip access-list standard ACL-MGMT-INBOUND
+ permit 192.168.19.0 0.0.0.255
+ deny any log
+!
+line con 0
+ exec-timeout 10 0
+ logging synchronous
+ login authentication default
+line vty 0 4
+ exec-timeout 10 0
+ logging synchronous
+ transport input ssh
+ access-class ACL-MGMT-INBOUND in
+!
+end
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
