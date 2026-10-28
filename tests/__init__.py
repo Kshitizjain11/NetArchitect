@@ -1,1 +1,1 @@
-# tests package
+"""NetArchitect test package."""

@@ -1,0 +1,20 @@
+{
+  "name": "custom_edge_datacenter",
+  "description": "Custom Edge Computing Facility with Local IoT & AI Inference",
+  "distance_m": 75.0,
+  "root_prefix": "192.168.10.0/24",
+  "requested_media": "copper",
+  "single_as": true,
+  "multi_site_or_cloud": false,
+  "features": [
+    "802.1Q VLAN Trunking",
+    "Rapid PVST+",
+    "Single-Area OSPFv2"
+  ],
+  "vlan_base": 100,
+  "host_requests": [
+    {"name": "Inference_Cluster", "hosts": 100, "vlan_id": 110},
+    {"name": "Edge_Sensors", "hosts": 50, "vlan_id": 120},
+    {"name": "OOB_Management", "hosts": 20, "vlan_id": 130}
+  ]
+}
