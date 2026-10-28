@@ -249,6 +249,73 @@ CUSTOM_CSS = """
         border-radius: 6px !important;
         background-color: #ffffff !important;
     }
+
+    /* Primary / Green Buttons (Run Engineering Engine, etc.) */
+    button[kind="primary"],
+    button[data-testid="baseButton-primary"],
+    div[data-testid="stButton"] button[kind="primary"],
+    div[data-testid="stButton"] button {
+        background-color: #0f515e !important;
+        color: #ffffff !important;
+        border: 1px solid #0f515e !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+    }
+    
+    button[kind="primary"] p,
+    button[kind="primary"] span,
+    button[kind="primary"] div,
+    button[data-testid="baseButton-primary"] p,
+    button[data-testid="baseButton-primary"] span,
+    button[data-testid="baseButton-primary"] div,
+    div[data-testid="stButton"] button p,
+    div[data-testid="stButton"] button span,
+    div[data-testid="stButton"] button div,
+    div[data-testid="stButton"] button * {
+        color: #ffffff !important;
+        font-weight: 600 !important;
+    }
+
+    button[kind="primary"]:hover,
+    div[data-testid="stButton"] button:hover {
+        background-color: #136373 !important;
+        border-color: #136373 !important;
+        color: #ffffff !important;
+    }
+    button[kind="primary"]:hover *,
+    div[data-testid="stButton"] button:hover * {
+        color: #ffffff !important;
+    }
+
+    /* Download buttons */
+    div[data-testid="stDownloadButton"] button {
+        background-color: #ffffff !important;
+        color: #0f515e !important;
+        border: 1px solid #0f515e !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stDownloadButton"] button p,
+    div[data-testid="stDownloadButton"] button span,
+    div[data-testid="stDownloadButton"] button div,
+    div[data-testid="stDownloadButton"] button * {
+        color: #0f515e !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stDownloadButton"] button:hover {
+        background-color: #f0fdfa !important;
+        border-color: #0f515e !important;
+    }
+    div[data-testid="stDownloadButton"] button:hover * {
+        color: #0b3d47 !important;
+    }
+    div[data-testid="stDownloadButton"] button[kind="primary"] {
+        background-color: #0f515e !important;
+        color: #ffffff !important;
+    }
+    div[data-testid="stDownloadButton"] button[kind="primary"] * {
+        color: #ffffff !important;
+    }
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -629,7 +696,7 @@ with tab_cisco:
 # ---------------------------------------------------------------------------
 
 with tab_explain:
-    st.subheader("Contextual Engineering Justifications (PROJECT_SPEC.md §9)")
+    st.subheader("Contextual Engineering Justifications")
     st.caption("Deterministic 6-point justification for every media, VLSM, routing, topology, QoS, and IPsec decision.")
 
     for j in exp_report.all_justifications:
@@ -688,7 +755,7 @@ with tab_exports:
     st.divider()
     st.markdown("### Packet Tracer / GNS3 Simulation Verification Checklist")
     st.markdown("""
-    Per Section 14 of PROJECT_SPEC.md, simulator verification status must be accurately documented:
+    Configuration integrity and simulation verification status:
     - [x] **Syntactic Consistency:** Configurations checked against Cisco IOS 15.x syntax.
     - [x] **Addressing Integrity:** Interface IP addresses match VLSM allocations without collisions.
     - [x] **VLAN Trunk Safety:** Trunks explicitly allow allocated VLANs; native VLAN isolated to ID 999.
